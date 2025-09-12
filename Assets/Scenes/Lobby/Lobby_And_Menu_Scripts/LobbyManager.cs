@@ -1,172 +1,172 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-using Fusion;                          // Photon Fusion Haupt-Namespace
-using Fusion.Photon.Realtime;         // Enthält PhotonAppSettings, AppSettings und Netzwerk-Datenstrukturen
+using Fusion;
+using Fusion.Photon.Realtime; // für PhotonAppSettings
+using System.Threading;       // falls du später CancelTokens nutzt
+using System.Threading.Tasks;
+using Fusion.Sockets; // falls du später awaitest
+using TMPro;
 
 public class LobbyManager : MonoBehaviour, INetworkRunnerCallbacks
 {
-    // Verweise auf UI-Elemente (im Inspector zuzuweisen)
-    public InputField roomNameInput;
-    public Dropdown regionDropdown;
+    [Header("UI")]
+    public TMP_InputField roomNameInput;
+    public TMP_Dropdown regionDropdown;        // Einträge: z.B. "auto", "eu", "us", "usw", "asia", ...
     public Button quickJoinButton;
     public Button hostButton;
     public Button joinButton;
-    public Text statusText;
+    public TMP_Text statusText;
 
-    private NetworkRunner networkRunner;      // Referenz auf die NetworkRunner-Komponente
-    private string gameVersion = "1.0";       // Version des Spiels (für Photon matchmaking untersch. Versionen)
+    private NetworkRunner networkRunner;
+    private const string GameVersion = "1.0.0";
 
-    void Start()
+    void Awake()
     {
-        // NetworkRunner-Komponente holen (befindet sich auf demselben GameObject)
         networkRunner = GetComponent<NetworkRunner>();
-        if (networkRunner == null)
-        {
-            // Falls noch kein NetworkRunner dran (sollte nicht passieren, da wir ihn manuell hinzugefügt haben)
-            networkRunner = gameObject.AddComponent<NetworkRunner>();
-        }
+        if (networkRunner == null) networkRunner = gameObject.AddComponent<NetworkRunner>();
 
-        // Diese Klasse (LobbyManager) als Callback-Empfänger beim NetworkRunner registrieren:
+        // UI-Events
+        if (quickJoinButton) quickJoinButton.onClick.AddListener(OnQuickJoin);
+        if (hostButton)      hostButton.onClick.AddListener(OnHostGame);
+        if (joinButton)      joinButton.onClick.AddListener(OnJoinGame);
+
+        // Callbacks registrieren
         networkRunner.AddCallbacks(this);
 
-        // Button-Events verküpfen:
-        quickJoinButton.onClick.AddListener(OnQuickJoin);
-        hostButton.onClick.AddListener(OnHostGame);
-        joinButton.onClick.AddListener(OnJoinGame);
-
-        // Anfangsstatus anzeigen
-        statusText.text = "Bitte Auswahl treffen...";
+        if (statusText) statusText.text = "Bitte Auswahl treffen...";
     }
 
-    // Methode für Quick Join Button
-    private void OnQuickJoin()
+    // ---------- Button-Handler ----------
+    void OnQuickJoin()
     {
-        statusText.text = "Quick Join – Spiel wird gesucht/erstellt...";
-        StartGame(SessionName: null, allowCreate: true);
-        // SessionName null bedeutet: Photon Fusion sucht ein beliebiges offenes Spiel 
-        // und erstellt ggf. ein neues, falls keines verfügbar ist:contentReference[oaicite:10]{index=10}.
+        if (statusText) statusText.text = "Quick Join – suche/erstelle Spiel…";
+        StartGame(sessionName: null, allowCreate: true);
     }
 
-    // Methode für Host Game Button
-    private void OnHostGame()
+    void OnHostGame()
     {
-        // Raumname aus InputField lesen (optional vom Spieler eingegeben)
-        string roomName = roomNameInput.text;
-        if (string.IsNullOrEmpty(roomName))
+        var roomName = string.IsNullOrWhiteSpace(roomNameInput?.text)
+            ? $"Room_{UnityEngine.Random.Range(1000, 9999)}"
+            : roomNameInput.text;
+
+        if (statusText) statusText.text = $"Erstelle Spiel \"{roomName}\"…";
+        StartGame(sessionName: roomName, allowCreate: true);
+    }
+
+    void OnJoinGame()
+    {
+        var roomName = roomNameInput?.text;
+        if (string.IsNullOrWhiteSpace(roomName))
         {
-            // Wenn kein Name eingegeben, einen zufälligen generieren
-            roomName = "Room_" + Random.Range(1000, 9999);
-        }
-        statusText.text = $"Erstelle Spiel \"{roomName}\"...";
-        StartGame(SessionName: roomName, allowCreate: true);
-        // SessionName gesetzt => Fusion erstellt diesen Raum neu (oder tritt bei, falls zufällig gleicher Name existiert).
-    }
-
-    // Methode für Join Game Button
-    private void OnJoinGame()
-    {
-        string roomName = roomNameInput.text;
-        if (string.IsNullOrEmpty(roomName))
-        {
-            statusText.text = "Bitte geben Sie einen Raum-Namen ein!";
+            if (statusText) statusText.text = "Bitte einen Raum-Namen eingeben!";
             return;
         }
-        statusText.text = $"Trete Spiel \"{roomName}\" bei...";
-        StartGame(SessionName: roomName, allowCreate: false);
-        // allowCreate = false => nur beitreten, nicht erstellen:contentReference[oaicite:11]{index=11}.
+        if (statusText) statusText.text = $"Trete Spiel \"{roomName}\" bei…";
+        StartGame(sessionName: roomName, allowCreate: false);
     }
 
-    // Zentrale Methode zum Starten/Beitreten einer Session (Photon Fusion StartGame aufrufen)
-    private void StartGame(string SessionName, bool allowCreate)
+    // ---------- Runner starten ----------
+    void StartGame(string sessionName, bool allowCreate)
     {
-        // 1. Gewählte Region ermitteln:
-        string regionCode = null;
-        if (regionDropdown != null)
-        {
-            // Text der gewählten Dropdown-Option auslesen
-            regionCode = regionDropdown.options[regionDropdown.value].text;
-            if (regionCode.ToLower() == "auto")
-            {
-                regionCode = null; // null => keine feste Region -> Best Region verwenden
-            }
-        }
+        // Region aus Dropdown lesen ("" oder "auto" => Best Region)
+        string regionText = null;
+        if (regionDropdown && regionDropdown.options.Count > 0)
+            regionText = regionDropdown.options[regionDropdown.value].text;
 
-        // 2. Photon AppSettings basierend auf globalen Einstellungen kopieren und ggf. Region überschreiben:
-        Fusion.Photon.Realtime.AppSettings customAppSettings = null;
-        if (!string.IsNullOrEmpty(regionCode))
-        {
-            // Globale Photon Einstellungen holen (enthält AppID usw.)
-            var baseSettings = PhotonAppSettings.Instance.AppSettings;
-            customAppSettings = baseSettings.GetCopy();     // Kopie erzeugen, um Einstellungen nicht global zu verändern
-            customAppSettings.UseNameServer = true;         // NameServer nutzen (standardmäßig true)
-            customAppSettings.FixedRegion = regionCode.ToLower();  // Region festlegen (z.B. "eu" oder "us")
-            customAppSettings.AppVersion = gameVersion;     // App-Version setzen (optional, für getrenntes Matchmaking nach Version)
-        }
+        // AppSettings-Kopie bauen (Region, AppVersion usw.)
+        var appSettings = BuildCustomAppSettings(regionText);
 
-        // 3. StartGameArgs für NetworkRunner vorbereiten:
-        var startArgs = new StartGameArgs()
+        // Optional: aktuelle Szene als Startszene hinterlegen
+        var sceneRef = SceneRef.FromIndex(SceneManager.GetActiveScene().buildIndex);
+        var sceneInfo = new NetworkSceneInfo();
+        if (sceneRef.IsValid)
+            sceneInfo.AddSceneRef(sceneRef, LoadSceneMode.Single); // bleibt in derselben Szene
+
+        var startArgs = new StartGameArgs
         {
-            GameMode = GameMode.Shared,      // Shared Mode (kein dedizierter Server, Clients teilen Simulation)
-            SessionName = SessionName,       // Name der Session (null für Quick Join)
-            PlayerCount = 10,               // maximale Spieleranzahl (optional; hier z.B. 10)
-            Scene = SceneManager.GetActiveScene().buildIndex, // aktuelle Szene als Spielszene nutzen
-            // Scene = SceneRef.None   // (Alternativ könnte man hier eine andere Szene laden lassen)
-            SessionOption = new SessionProperty()            // (Standard-Optionen, hier nicht verändert)
+            GameMode = GameMode.Shared,
+            SessionName = sessionName,                  // null => Random/Quick Join
+            PlayerCount = 10,
+            EnableClientSessionCreation = allowCreate,  // nur joinen, wenn false
+            CustomPhotonAppSettings = appSettings,
+            Scene = sceneInfo
+            // SessionProperties = new Dictionary<string, SessionProperty> { { "mode", (SessionProperty)"lobby" } }
         };
-        if (!allowCreate)
-        {
-            // Option setzen, um nur beizutreten und nicht selbst zu erstellen, falls Session nicht existiert:
-            startArgs.EnableClientSessionCreation = false;
-        }
-        if (customAppSettings != null)
-        {
-            startArgs.CustomPhotonAppSettings = customAppSettings;
-        }
 
-        // 4. Spiel/Session starten bzw. beitreten:
+        // Hinweis: StartGame ist async; wir lassen es hier "fire-and-forget".
         networkRunner.StartGame(startArgs);
-        // Hinweis: StartGame wird asynchron ausgeführt. Ergebnisse kommen über die Callbacks (siehe unten).
     }
 
-    // --- Implementierung der INetworkRunnerCallbacks-Methoden: ---
-    public void OnConnectedToServer(NetworkRunner runner)
+    // Baut eine FusionAppSettings-Kopie mit optionaler FixedRegion
+    FusionAppSettings BuildCustomAppSettings(string region)
     {
-        // Erfolgreich mit Photon Server (Master Server) verbunden
-        statusText.text = "Mit Photon Server verbunden!";
+        // Doku zeigt "PhotonAppSettings.Global" – das ist in Fusion 2 so vorgesehen
+        var app = PhotonAppSettings.Global.AppSettings.GetCopy();
+        app.UseNameServer = true;
+        app.AppVersion = GameVersion;
+
+        if (!string.IsNullOrEmpty(region) && region.ToLower() != "auto")
+            app.FixedRegion = region.ToLower(); // z.B. "eu", "us", "usw", "asia", ...
+
+        return app;
     }
+
+    // ---------- INetworkRunnerCallbacks (Fusion 2 Signaturen) ----------
+    public void OnConnectedToServer(NetworkRunner runner)
+        => SafeStatus("Mit Photon Server verbunden.");
 
     public void OnConnectFailed(NetworkRunner runner, NetAddress remoteAddress, NetConnectFailedReason reason)
-    {
-        // Verbindung/Beitritt fehlgeschlagen
-        statusText.text = $"Verbindung fehlgeschlagen: {reason}";
-    }
+        => SafeStatus($"Verbindung fehlgeschlagen: {reason}");
+
+    public void OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token) { }
+
+    public void OnCustomAuthenticationResponse(NetworkRunner runner, Dictionary<string, object> data) { }
+
+    void INetworkRunnerCallbacks.OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason)
+        => SafeStatus($"Getrennt: {reason}");
+
+    public void OnHostMigration(NetworkRunner runner, HostMigrationToken hostMigrationToken) { }
+
+    public void OnInput(NetworkRunner runner, NetworkInput input) { /* In der Lobby ungenutzt */ }
+
+    public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
+
+    public void OnObjectEnterAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }
+
+    public void OnObjectExitAOI(NetworkRunner runner, NetworkObject obj, PlayerRef player) { }
 
     public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
-    {
-        // Ein Spieler (oder man selbst) ist der Session beigetreten
-        statusText.text = $"Spieler beigetreten: Player {player.PlayerId}";
-    }
+        => SafeStatus($"Spieler beigetreten: Player {player.PlayerId}");
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
-    {
-        // Ein Spieler hat das Spiel verlassen
-        statusText.text = $"Spieler verlassen: Player {player.PlayerId}";
-    }
+        => SafeStatus($"Spieler verlassen: Player {player.PlayerId}");
+
+    public void OnReliableDataProgress(NetworkRunner runner, PlayerRef player, ReliableKey key, float progress) { }
+
+    public void OnReliableDataReceived(NetworkRunner runner, PlayerRef player, ReliableKey key, ArraySegment<byte> data) { }
+
+    public void OnSceneLoadStart(NetworkRunner runner) { }
+
+    public void OnSceneLoadDone(NetworkRunner runner) { }
+
+    public void OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessionList) { }
 
     public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
-    {
-        // Netzwerk/Session wurde beendet (z.B. alle Spieler raus, Disconnect, Fehler etc.)
-        statusText.text = $"Disconnected: {shutdownReason}";
-    }
+        => SafeStatus($"Runner beendet: {shutdownReason}");
 
-    // Nicht benötigte Callbacks können leer bleiben:
-    public void OnDisconnectedFromServer(NetworkRunner runner) { }
-    public void OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token) { }
-    public void OnSessionListUpdated(NetworkRunner runner, System.Collections.Generic.List<SessionInfo> sessionList) { }
-    public void OnInput(NetworkRunner runner, NetworkRunnerCallbackArgs.Input input) { }
-    public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
-    public void OnLobbyStatisticsUpdate(NetworkRunner runner, Fusion.Photon.Realtime.LobbyStats[] stats) { }
-    public void OnSceneLoadStart(NetworkRunner runner) { }
-    public void OnSceneLoadDone(NetworkRunner runner) { }
+    public void OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message) { }
+
+    // Hilfsfunktion, um Null-Checks zu sparen
+    void SafeStatus(string msg) { if (statusText) statusText.text = msg; }
+
+
+
+
+
+
+
+
 }
