@@ -15,7 +15,7 @@ public class RoomListManager : MonoBehaviour, INetworkRunnerCallbacks
     public GameObject roomItemPrefab;         // Prefab für einen Raumeintrag (RoomListItem)
     public TMP_InputField nameFilterInput;    // Eingabefeld für Namensfilter
     public TMP_Dropdown regionDropdown;       // Dropdown für Regionsfilter
-
+    const string APP_VERSION = "1.0.0";
     private List<SessionInfo> cachedSessions = new List<SessionInfo>();
 
     async void Start()
@@ -86,23 +86,44 @@ public class RoomListManager : MonoBehaviour, INetworkRunnerCallbacks
                 $"{session.PlayerCount}/{session.MaxPlayers} Spieler";
 
             Button joinBtn = item.transform.Find("JoinButton").GetComponent<Button>();
-            string sessionName = session.Name;
-            joinBtn.onClick.AddListener(() => JoinSelectedRoom(sessionName));
+            string sessionName   = session.Name;
+            string sessionRegion = session.Region;
+            joinBtn.onClick.AddListener(() => JoinSelectedRoom(sessionName, sessionRegion));
         }
     }
 
-    private async void JoinSelectedRoom(string sessionName)
+    void ApplyCommonAppSettings(string regionOrNull)
     {
-        Debug.Log($"Betrete Raum: {sessionName}");
+        var a = PhotonAppSettings.Global.AppSettings.GetCopy();
+        a.UseNameServer = true;
+        a.AppVersion = APP_VERSION;                     // überall gleich
+        a.FixedRegion = string.IsNullOrWhiteSpace(regionOrNull) ? null : regionOrNull.ToLower();
+        PhotonAppSettings.Global.AppSettings = a;
+    }
 
-        var result = await networkRunner.StartGame(new StartGameArgs()
+    private async void JoinSelectedRoom(string sessionName, string sessionRegion)
+    {
+        if (string.IsNullOrWhiteSpace(sessionName))
         {
-            GameMode = GameMode.Client,
-            SessionName = sessionName
+            Debug.LogWarning("[RoomListManager] Ungültiger SessionName.");
+            return;
+        }
+
+        // 1) Region passend zum Raum setzen (sonst suchst du in der falschen Region)
+        ApplyCommonAppSettings(sessionRegion);
+
+        Debug.Log($"[RoomListManager] Join '{sessionName}' in region '{sessionRegion}' (Shared)");
+
+        // 2) Shared-Join, ohne neue Session zu erstellen
+        var result = await networkRunner.StartGame(new StartGameArgs
+        {
+            GameMode = GameMode.Shared,
+            SessionName = sessionName,
+            EnableClientSessionCreation = false
         });
 
         if (!result.Ok)
-            Debug.LogError("Beitritt fehlgeschlagen: " + result.ShutdownReason);
+            Debug.LogError($"Beitritt fehlgeschlagen: {result.ShutdownReason}");
     }
 
     // ----- INetworkRunnerCallbacks (Photon Fusion 2) -----
