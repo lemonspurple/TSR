@@ -5,20 +5,20 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using Fusion;
 using Fusion.Photon.Realtime; // für PhotonAppSettings
-using System.Threading;       // falls du später CancelTokens nutzt
+using System.Threading;       // falls ich später CancelTokens nutzte
 using System.Threading.Tasks;
-using Fusion.Sockets; // falls du später awaitest
+using Fusion.Sockets; // falls ich später awaitest
 using TMPro;
 
 public class LobbyManager : MonoBehaviour, INetworkRunnerCallbacks
 {
     [Header("UI")]
     public TMP_InputField roomNameInput;
-    public TMP_Dropdown regionDropdown;        // Einträge: z.B. "auto", "eu", "us", "usw", "asia", ...
+    public TMP_Dropdown regionDropdown;        // Einträge: "auto", "eu", "us", "usw", "asia"
     public Button quickJoinButton;
     public Button hostButton;
     public Button joinButton;
-    public TMP_Text statusText;
+    public TMP_Text statusText; // debug GUI Text
 
     private NetworkRunner networkRunner;
     private const string GameVersion = "1.0.0";
@@ -27,7 +27,6 @@ public class LobbyManager : MonoBehaviour, INetworkRunnerCallbacks
     {
         networkRunner = GetComponent<NetworkRunner>();
         if (networkRunner == null) networkRunner = gameObject.AddComponent<NetworkRunner>();
-
         // UI-Events
         if (quickJoinButton) quickJoinButton.onClick.AddListener(OnQuickJoin);
         if (hostButton)      hostButton.onClick.AddListener(OnHostGame);
