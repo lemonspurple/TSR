@@ -4,7 +4,7 @@
 PlayerSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 28
-  productGUID: fa7f0731a6739975881057362cbbfdab
+  productGUID: 1e702e99422806752a4ad990b597e6f4
   AndroidProfiler: 0
   AndroidFilterTouchesWhenObscured: 0
   AndroidEnableSustainedPerformanceMode: 0
@@ -13,7 +13,7 @@ PlayerSettings:
   useOnDemandResources: 0
   accelerometerFrequency: 60
   companyName: DefaultCompany
-  productName: TSR
+  productName: TowieSuwiewies
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
@@ -523,8 +523,8 @@ PlayerSettings:
       m_Kind: 1
       m_SubKind: 
   m_BuildTargetBatching:
-  - m_BuildTarget: WebGL
-    m_StaticBatching: 0
+  - m_BuildTarget: Standalone
+    m_StaticBatching: 1
     m_DynamicBatching: 0
   m_BuildTargetShaderSettings: []
   m_BuildTargetGraphicsJobs: []
@@ -561,6 +561,9 @@ PlayerSettings:
   - serializedVersion: 3
     m_BuildTarget: Android
     m_Formats: 03000000
+  - serializedVersion: 3
+    m_BuildTarget: WebGL
+    m_Formats: 05000000
   playModeTestRunnerEnabled: 0
   runPlayModeTestAsEditModeTest: 0
   actionOnDotNetUnhandledException: 1
@@ -827,8 +830,8 @@ PlayerSettings:
   webWasm2023: 0
   webEnableSubmoduleStrippingCompatibility: 0
   scriptingDefineSymbols:
-    Standalone: FUSION_LOGLEVEL_INFO;FUSION_WEAVER;FUSION2
-    WebGL: FUSION_WEAVER;FUSION2;FUSION_LOGLEVEL_INFO
+    Standalone: FUSION_LOGLEVEL_INFO;FUSION_WEAVER;FUSION2;FUSION_2;FUSION_2_0;FUSION_2_0_7;FUSION_2_OR_NEWER;FUSION_2_0_OR_NEWER
+    WebGL: FUSION_WEAVER;FUSION2;FUSION_2;FUSION_2_0;FUSION_2_0_7;FUSION_2_OR_NEWER;FUSION_2_0_OR_NEWER;FUSION_LOGLEVEL_INFO
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend:
@@ -849,14 +852,14 @@ PlayerSettings:
   editorAssembliesCompatibilityLevel: 1
   m_RenderingPath: 1
   m_MobileRenderingPath: 1
-  metroPackageName: TSR
+  metroPackageName: TowieSuwiewies
   metroPackageVersion: 
   metroCertificatePath: 
   metroCertificatePassword: 
   metroCertificateSubject: 
   metroCertificateIssuer: 
   metroCertificateNotAfter: 0000000000000000
-  metroApplicationDescription: TSR
+  metroApplicationDescription: TowieSuwiewies
   wsaImages: {}
   metroTileShortName: 
   metroTileShowName: 0
@@ -927,11 +930,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 1
   windowsGamepadBackendHint: 0
-  cloudProjectId: a7b88e16-d90c-4b9d-95fc-f99dd90ce7fb
+  cloudProjectId: 
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: TSR
-  organizationId: flowersnowfalls
+  projectName: 
+  organizationId: 
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}
