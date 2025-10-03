@@ -6,7 +6,6 @@ using UnityEngine.SceneManagement;
 using Fusion;
 using Fusion.Photon.Realtime; // für PhotonAppSettings
 using System.Threading;       // falls ich später CancelTokens nutzte
-using System.Threading.Tasks;
 using Fusion.Sockets; // falls ich später awaitest
 using TMPro;
 

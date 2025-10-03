@@ -26,7 +26,8 @@
             "ClientSendIndex": 1,
             "ServerSendIndex": 1
         },
-        "MaxObjectDestroysSentPerPacket": 32
+        "MaxObjectDestroysSentPerPacket": 32,
+        "EnableExperimentalPacketLossRecovery": false
     },
     "Network": {
         "ConnectionTimeout": 10.0,
@@ -34,11 +35,11 @@
         "ReliableDataTransferModes": 3
     },
     "HostMigration": {
-        "EnableAutoUpdate": false,
+        "EnableAutoUpdate": true,
         "UpdateDelay": 10
     },
     "EncryptionConfig": {
-        "EnableEncryption": false
+        "EnableEncryption": true
     },
     "NetworkConditions": {
         "Enabled": false,
