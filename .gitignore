@@ -100,3 +100,5 @@ InitTestScene*.unity*
 
 PhotonAppSettings.asset
 PhotonAppSettings.asset.meta
+
+.vscode
